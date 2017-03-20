@@ -2,14 +2,17 @@
 "use strict";
 var page = require('webpage').create();
 var system = require('system');
-
 var fs = require('fs');
+
+// Global variables
 var htmls = [];
 var pdfs =  [];
 var index = 0;
 var pindex = 0;
-var base_source = "/home/yashpal/Projects/Treasure/htmls/"
-var base_destination = "/home/yashpal/Projects/pdfs/"
+var job_id = null;
+var base_source = "/home/yashpal/Projects/Treasure/phantomjs/htmls/"
+var base_destination = "/home/yashpal/Projects/avanti-lms/tmp/print/"
+
 
 var capture = function(page, url, callback) {
     page.open(url, function(status) {
@@ -76,12 +79,14 @@ var printPdf = function(htmlfile, pdffile) {
         }
 
         fs.remove(htmlfile);
-
+        console.log("printing:  " + htmlfile);
         if (index == htmls.length - 1) {
-            // t1 = htmlfile.split('/')
-            // t1.pop
-            // job_id = t1.pop
-            // update_status(job_id,"finished")
+            console.log("Job Id: " + job_id);
+            console.log(base_source+job_id+'/');
+            console.log(base_destination+job_id+'/');
+            fs.copyTree(base_source+job_id+'/', base_destination+job_id+'/');
+            fs.removeTree(base_source+'/'+job_id);
+            update_status(job_id, "finished")
             daemon();
         } else {
             index++;
@@ -94,28 +99,33 @@ var printPdf = function(htmlfile, pdffile) {
 var getFileList = function() {
     pindex++;
     console.log("PIndex: "+ pindex);
-    var htmls = new Array();
-    var pdfs = new Array();
-    var basepath = "/home/yashpal/Projects/Treasure/phantomjs/test"
-    var curdir = fs.list(basepath);
+    htmls = [];
+    pdfs = [];
+    var basepath = base_source
+    console.log("base: " + basepath);
+    var curdir = fs.list(basepath).slice(2);
+    console.log("all files:" + curdir);
     var workingDirectory = null
     for (var i = 0; i < curdir.length; i++) {
         var fullpath = basepath + curdir[i];
+        console.log("full path: " + fullpath)
         if(fs.isDirectory(fullpath)) {
+            console.log("Directory: " + fullpath)
             workingDirectory = fullpath;
-            break; 
-        }
-    }
-
-    if (workingDirectory != null) {
-        curdir = fs.list(workingDirectory);
-        for (var i = 0; i < curdir.length; i++) {
-            var fullpath = fs.workingDirectory + fs.separator + curdir[i];
-            if (fs.isFile(fullpath)) {
-                if (fullpath.indexOf('.html') != -1) {
-                    htmls.push(fullpath);
-                    pdfs.push(fullpath.replace('.html', '.pdf'))
+            console.log("Working in" + workingDirectory);
+            var allfiles = fs.list(workingDirectory);
+            for (var j = 0; j < allfiles.length; j++) {
+                var fullfilepath = workingDirectory + fs.separator + allfiles[j];
+                if (fs.isFile(fullfilepath)) {
+                    if (fullfilepath.indexOf('.html') != -1) {
+                        htmls.push(fullfilepath);
+                        pdfs.push(fullfilepath.replace('.html', '.pdf'))
+                    }
                 }
+            }
+            if (htmls.length > 0) {
+                job_id = curdir[i];
+                break;
             }
         }
     }
@@ -127,6 +137,7 @@ var daemon = function() {
     if (htmls.length > 0) {
         console.log("Printing pdfs....");
         index = 0;
+        update_status(job_id, "started")
         printPdf(htmls[index], pdfs[index]);
     } else {
         console.log("Continue daemon....");
@@ -137,12 +148,12 @@ var daemon = function() {
 var update_status = function(job_id, status) {
     var updatepage = require('webpage').create(),
     server = 'http://localhost:3002/print/status',
-    data = 'status='+status+'job_id='+job_id;
+    data = 'status='+status+'&job_id='+job_id+'&actor=PhantomJs&remark=Status update by PhamtoJs service.';
     updatepage.open(server, 'post', data, function (status) {
         if (status !== 'success') {
             console.log('Unable to post!');
         } else {
-            console.log(page.content);
+            console.log(updatepage.content);
         }
     });
 }
