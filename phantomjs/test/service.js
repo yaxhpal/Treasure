@@ -5,14 +5,14 @@
 
  "use strict";
  var page                    = null;
- var system                  = require('system');
- var fs                      = require('fs');
- var wp                      = require('webpage');
+ var system                  = require("system");
+ var fs                      = require("fs");
+ var wp                      = require("webpage");
 
 // Global variables
-var baseSource              = system.args[1]
-var baseDestination         = system.args[2]
-var server                  = system.args[3]
+var baseSource              = system.args[1];
+var baseDestination         = system.args[2];
+var server                  = system.args[3];
 
 var htmls                   = [];
 var pdfs                    = [];
@@ -21,7 +21,6 @@ var activeJobId             = null;
 var serviceHandle           = null;
 
 var COPYING_FLAG            = "_copying";
-
 
 // Print Job statuses
 var JOB_STATUS = {
@@ -44,7 +43,7 @@ var JOB_STATUS = {
         name:   "finished",
         actor:  "PhantomJS",
         remark: "Print Job has finished."
-    },    
+    },
     ARCHIVED: {
         name:   "archived",
         actor:  "PhantomJS",
@@ -53,7 +52,19 @@ var JOB_STATUS = {
 };
 
 /**
- * This function checks whether Chartjs has finished 
+ * Global error handler.
+ * @since 1.0.0
+ * @param {string} msg Error message
+ * @param {object} trace Trace of this error
+ */
+phantom.onError = function(msg, trace) {
+    console.log("Error: "+ msg)
+    updateStatus(activeJobId, JOB_STATUS.FAILED, msg);
+    PhantomService.resume();
+};
+    
+/**
+ * This function checks whether Chartjs has finished
  * redendering all charts.
  * @since 1.0.0
  * @param {string} page Webpage.
@@ -62,10 +73,9 @@ var JOB_STATUS = {
  */
  var capture = function(page, url, cb) {
     page.open(url, function(status) {
-        var interval, allDone;
-        interval = setInterval(function() {
-            var allDone = page.evaluate(function() { 
-                return window.chartReady; 
+        var interval = setInterval(function() {
+            var allDone = page.evaluate(function() {
+                return window.chartReady;
             });
 
             if (allDone) {
@@ -77,7 +87,7 @@ var JOB_STATUS = {
 };
 
 /**
- * Set basic properties of the Web Page and returns it. As, it sets properties 
+ * Set basic properties of the Web Page and returns it. As, it sets properties
  * of global page, it is done once.
  * @since 1.0.0
  * @return {Web Page} page Phantomjs Web page with set properties.
@@ -98,8 +108,8 @@ var JOB_STATUS = {
                 var footer_style = "border-top: .1em solid #000; padding-top: "
                 +" 5px; width:100%;font-size: 10px;text-align: center;";
                 var footer_text = "www.avanti.in";
-                return "<div style='" + footer_style + "'>" + footer_text + 
-                "<span style='float:right;'>Page - " + pageNum + " / " 
+                return "<div style='" + footer_style + "'>" + footer_text +
+                "<span style='float:right;'>Page - " + pageNum + " / "
                 + numPages + "</span></div>";
             })
         }
@@ -113,7 +123,7 @@ var JOB_STATUS = {
 }
 
 /**
- * It converts HTML file into PDF file.  
+ * It converts HTML file into PDF file.
  * @since 1.0.0
  * @param {string} htmlfile Webpage.
  * @param {string} pdffile URL to be loaded into the page.
@@ -131,7 +141,9 @@ var JOB_STATUS = {
             // Continue with service
             PhantomService.start();
         } else {
-            page.render(pdffile, { format: 'pdf'; });
+            page.render( pdffile, {
+                format: 'pdf'
+            });
             fs.remove(htmlfile);
             // If all files are processed from given directory, then start
             // checking others
@@ -167,17 +179,18 @@ var JOB_STATUS = {
     // Get List of all files under base source directory.
     // Also, remove '.' and '..' directories from the list (slice)
     var allDirs   = fs.list(basePath).slice(2); 
-    
+
     for (var i = 0; i < allDirs.length; i++) {
         var fullpath = basePath + allDirs[i];
+        console.log("Files(2): " + fullpath);
         // Do not process with COPYING_FLAG in their names
-        if(fs.isDirectory(fullpath) && !fullpath.includes(COPYING_FLAG)) {
+        if(fs.isDirectory(fullpath) && fullpath.indexOf(COPYING_FLAG) === -1) {
             workingDir = fullpath;
             var allfiles = fs.list(workingDir);
             for (var j = 0; j < allfiles.length; j++) {
                 var fullfilepath = workingDir + fs.separator + allfiles[j];
                 if (fs.isFile(fullfilepath)) {
-                    if (fullfilepath.indexOf('.html') != -1) {
+                    if (fullfilepath.indexOf('.html') !== -1) {
                         htmls.push(fullfilepath);
                         pdfs.push(fullfilepath.replace('.html', '.pdf'))
                     }
@@ -193,48 +206,51 @@ var JOB_STATUS = {
 }
 
 /**
- * It sends status updates to the Rails server.  
+ * It sends status updates to the Rails server.
  * @since 1.0.0
  * @param {string} activeJobId Current job id.
  * @param {string} status Status to be sent.
  * @param {string} extraRemark Optional, If you want to override standard 
  * status remark.
  */
- var updateStatus = function(activeJobId, status, extraRemark) {
-    var remark = extraRemark ? extraRemark : status.remark;
+ var updateStatus = function(activeJobId, printStatus, extraRemark) {
+    var remark = extraRemark ? extraRemark : printStatus.remark;
     var updatepage = wp.create();
     var request = {
       operation: "POST",
       encoding: "utf8",
       headers: {"Content-Type": "application/json"},
       data: JSON.stringify({
-        status: status.name,
-        activeJobId: activeJobId,
-        actor: status.actor,
-        remark: remark
-    })};
-      updatepage.open(server, 'POST', request, function (status) {
-        if (status !== 'success') {
-            console.log('Unable to post!');
-        } else {
-            console.log(updatepage.content);
-        }
-    });
-  }
+        status: printStatus.name,
+        job_id: activeJobId,
+        actor: printStatus.actor,
+        remark: remark })
+  };
+
+  updatepage.open(server, request, function (status) {
+    if (status !== 'success') {
+        console.log('Unable to post!');
+    } else {
+        console.log(updatepage.content);
+    }
+  });
+}
 
 
-/**
- * Main service daemon.   
+
+    /**
+ * Main service daemon.
  * @since 1.0.0
  */
  var PhantomService = { 
     start: function() {
+        console.log("Starting service...")
         htmlFilesList();
         if (htmls.length > 0) {
             console.log("Printing pdfs....");
             // Initialize the index for current group of files
             currHtmlFileIndx = 0;
-            update_status(activeJobId, JOB_STATUS.STARTED)
+            updateStatus(activeJobId, JOB_STATUS.STARTED)
             printPdf(htmls[currHtmlFileIndx], pdfs[currHtmlFileIndx]);
         } else {
             console.log("Continue daemon....");
@@ -245,12 +261,15 @@ var JOB_STATUS = {
         console.log("Stoping PhantomJs service.")
         clearTimeout(serviceHandle);
         phantom.exit();
+    },
+    resume: function() {
+        console.log("Continue PhantomJs service.")
+        clearTimeout(serviceHandle);
+        serviceHandle = setTimeout(PhantomService.start, 5000);
     }
 }
 
-
-
-if (system.args.length < 3) {
+if (system.args.length < 4) {
     console.log("Usages: service <HTML base directory path> "+
         "<PDF base Directory path> <LMS server path url>");
     PhantomService.stop(); 
@@ -258,4 +277,3 @@ if (system.args.length < 3) {
     // Start service
     PhantomService.start();
 }
-
