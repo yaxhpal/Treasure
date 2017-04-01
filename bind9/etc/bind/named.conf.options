@@ -1,0 +1,9 @@
+options {
+        directory "/var/cache/bind";
+        auth-nxdomain no;
+        listen-on-v6 { any; };
+        statistics-file "/var/cache/bind/named.stats";
+        rrset-order {order cyclic;};
+    allow-transfer { 127.0.0.1; };
+};
+

@@ -1,0 +1,37 @@
+$TTL    86400
+@   IN  SOA ns1.peerlearning.com. root.peerlearning.com. (
+            2014100801  ; Serial
+            43200       ; Refresh
+            3600        ; Retry
+            1209600     ; Expire
+            180 )       ; Minimum TTL
+
+; Nameservers
+    IN  NS  ns1.peerlearning.com.
+    IN  NS  ns2.peerlearning.com.
+    IN  NS  ns3.peerlearning.com.
+
+; Root site
+    IN  A   192.168.100.27
+
+; Hostname records
+*   IN  A   192.168.100.27
+cms    IN  A   192.168.100.27
+lms    IN  A   192.168.100.27
+accounts IN A  192.168.100.27
+
+; Aliases
+www IN  CNAME   peerlearning.com.
+webmail IN  CNAME   ghs.google.com.
+
+; MX records
+@   IN  MX  1   aspmx.l.google.com.
+@   IN  MX  3   alt1.aspmx.l.google.com.
+@   IN  MX  3   alt2.aspmx.l.google.com.
+@   IN  MX  5   aspmx2.googlemail.com.
+@   IN  MX  5   aspmx3.googlemail.com.
+@   IN  MX  5   aspmx4.googlemail.com.
+@   IN  MX  5   aspmx5.googlemail.com.
+
+; SPF records
+@   IN  TXT "v=spf1 ip4:199.195.140.194 include:_spf.google.com ~all"
