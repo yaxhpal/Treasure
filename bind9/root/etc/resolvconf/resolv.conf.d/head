@@ -1,0 +1,3 @@
+search nyc3.example.com  # your private domain
+nameserver 10.128.10.11  # ns1 private IP address
+nameserver 10.128.20.12  # ns2 private IP address

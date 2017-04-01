@@ -1,0 +1,11 @@
+zone "nyc3.example.com" {
+    type master;
+    file "/etc/bind/zones/db.nyc3.example.com"; # zone file path
+    allow-transfer { 10.128.20.12; };           # ns2 private IP address - secondary
+};
+
+zone "128.10.in-addr.arpa" {
+    type master;
+    file "/etc/bind/zones/db.10.128";  # 10.128.0.0/16 subnet
+    allow-transfer { 10.128.20.12; };  # ns2 private IP address - secondary
+};
