@@ -1,0 +1,14 @@
+sudo apt-get install bind9 bind9utils bind9-doc
+
+sudo vi /etc/default/bind9
+
+sudo vi /etc/bind/named.conf.options
+
+sudo vi /etc/bind/named.conf.local
+
+sudo mkdir /etc/bind/zones
+
+cd /etc/bind/zones
+sudo cp ../db.local ./db.peerlearning.com
+
+sudo cp ../db.127 ./db.10.128
